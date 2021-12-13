@@ -3,6 +3,9 @@ class PlayScene extends Phaser.Scene {
         super('PlayScene');
     }
     create() {
+        this.jumpIsUsed = false;
+        this.jumpIsAllowed = false;
+        this.dashIsUsed = false;
         // variabel för att hålla koll på hur många gånger vi spikat oss själva
         this.spiked = 0;
 
@@ -41,6 +44,7 @@ class PlayScene extends Phaser.Scene {
         this.player = this.physics.add.sprite(50, 300, 'player');
         this.player.setBounce(0.1);
         this.player.setCollideWorldBounds(true);
+        this.player.setData('health', 8);
 
         // skapa en fysik-grupp
         this.spikes = this.physics.add.group({
@@ -52,7 +56,7 @@ class PlayScene extends Phaser.Scene {
         // kan vi ladda in andra lager
         // i tilemappen finns det ett lager Spikes
         // som innehåller spikarnas position
-        console.log(this.platforms);
+
         /*map.getObjectLayer('Spikes').objects.forEach((spike) => {
             // iterera över spikarna, skapa spelobjekt
             const spikeSprite = this.spikes
@@ -72,10 +76,8 @@ class PlayScene extends Phaser.Scene {
             this
         );
 
-        this.physics.add.collider(this.player, this.platforms, this.jump, null, this);
-
         // krocka med platforms lagret
-        this.physics.add.collider(this.player, this.platforms);
+        this.physics.add.collider(this.player, this.platforms, this.jump, null, this);
 
         // skapa text på spelet, texten är tom
         // textens innehåll sätts med updateText() metoden
@@ -108,16 +110,49 @@ class PlayScene extends Phaser.Scene {
         this.cameras.main.setLerp(0.1, 0.1);
         this.cameras.main.setDeadzone(0, 0);
         this.cameras.main.setViewport(0, 0, 896, 448);
-        this.cameras.main.zoom = 1.6
         this.cameras.main.setBounds(0, 0, 896, 448);
 
-        this.foes = this.physics.add.group({   
-        });
+        this.physics.world.setBounds(0, 0, 896, 448);
+
+        this.foes = this.physics.add.group({});
+        this.donuts = this.physics.add.group({});
+        this.bullets = this.physics.add.group({});
+
         this.physics.add.collider(this.foes, this.platforms);
+        this.physics.add.overlap(this.foes, this.donuts, this.destroyDonutAndFoe);
+        this.physics.add.overlap(this.player, this.bullets, this.damagePlayer);
+        this.physics.add.collider(this.donuts, this.platforms, this.destroyDonut);
+        this.physics.add.collider(this.bullets, this.platforms, this.destroyBullet);
+
+        this.input.on('pointerdown', function (pointer) {
+            this.pointerIsDown = true;
+        }, this);
+
+        this.input.on('pointerup', function (pointer) {
+            this.pointerIsDown = false;
+        }, this);
+
+        this.donutCooldown = 0;
+        this.bulletCooldown = 0;
     }
 
     // play scenens update metod
     update() {
+
+        if (this.player.getData('health') <= 0){
+            if (this.text.text != 'Game Over')
+            this.text = this.add.text(0, (this.game.config.height / 2) - 128, 'Game Over', {
+                fontFamily: '"Mochiy Pop P One"',
+                fontSize: '128px',
+                fill: '#ff0000',
+                align: 'center',
+                fixedWidth: this.game.config.width,
+                fixedHeight: this.game.config.height,
+            });
+            this.player.setVelocityX(this.player.body.velocity.x * 0.93)
+            return;
+        }
+
         // för pause
         if (this.keyObj.isDown) {
             // pausa nuvarande scen
@@ -143,24 +178,88 @@ class PlayScene extends Phaser.Scene {
         {
             this.player.play('idle', true);
         }
-        if(this.DashKey.isDown){
-            this.foe = this.foes.create(this.player.body.x, this.player.body.y, 'foe');
+
+        if(!(this.WKey.isDown || this.SpaceKey.isDown) && !this.player.body.onFloor() && !this.jumpIsUsed){
+            this.jumpIsAllowed = true;
+        }
+    
+        if ((this.WKey.isDown || this.SpaceKey.isDown) && !this.player.body.onFloor() && !this.jumpIsUsed && this.jumpIsAllowed){
+            this.player.setVelocityY(-430);
+            this.jumpIsUsed = true;
         }
 
+        if(this.DashKey.isDown && this.foeAllowed){
+            this.foe = this.foes.create(this.player.body.x, this.player.body.y, 'foe');
+            this.foe.setData('health', 100);
+            this.foeAllowed = false;
+        }
 
+        if(!this.DashKey.isDown){
+            this.foeAllowed = true;
+        }
+
+        if(this.pointerIsDown && this.donutCooldown > 15){
+            let v = Math.atan2((this.game.input.mousePointer.x - this.player.body.x - 32 + this.cameras.main.scrollX),(this.game.input.mousePointer.y - this.player.body.y - 32 + this.cameras.main.scrollY))
+
+            this.donut = this.donuts.create(this.player.body.x + 32, this.player.body.y + 32, 'donut');
+            this.donut.setScale(0.125);
+            this.donut.body.allowGravity = false;
+            this.donut.setVelocityY(Math.cos(v+Math.PI)*(-800) + this.player.body.velocity.y)
+            this.donut.setVelocityX(Math.sin(v+Math.PI)*(-800) + this.player.body.velocity.x)
+            this.donut.setData('time', 40)
+            this.donutCooldown = 0;
+        }
+        this.donutCooldown++;
+        
+        if (this.donuts.countActive(true) != 0) {
+            this.donuts.children.iterate(function (child) {
+                if (child != null) {
+                    child.setVelocityY(child.body.velocity.y * 0.96);
+                    child.setVelocityX(child.body.velocity.x * 0.96);
+                    if (child.getData('time') == 0) {
+                        child.destroy();
+                    } else {
+                        child.setData('time', child.getData('time') - 1);
+                    }
+                }
+            })
+        }
+        if (this.foes.countActive(true) != 0 && this.bulletCooldown >= 80) {
+            this.bulletCooldown = 0;
+            let bullet;
+            let bullets = this.bullets;
+            let player = this.player;
+            let platforms = this.platforms;
+            this.foes.children.iterate(function (child) {
+                if (child != null) {
+                    let line = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 12, child.body.x + 12, child.body.y + 12);
+                    let line2 = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 35, child.body.x + 12, child.body.y + 35);
+                    let line3 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 12, child.body.x + 35, child.body.y + 12);
+                    let line4 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 35, child.body.x + 35, child.body.y + 35);
+                    if(platforms.getTilesWithinShape(line, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line2, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line3, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line4, { isColliding: true }).length == 0){
+                        let v = Math.atan2((player.body.x - child.body.x),(player.body.y - child.body.y))
+
+                        bullet = bullets.create(child.body.x + 32, child.body.y + 16, 'bullet');
+                        //bullet.setScale(0.5);
+                        bullet.rotation = -v - Math.PI/2;
+                        if(player.body.x >= child.body.x){
+                            bullet.flipY = true;
+                        }
+                        bullet.body.allowGravity = false;
+                        bullet.setVelocityY(Math.cos(v+Math.PI)*(-200))
+                        bullet.setVelocityX(Math.sin(v+Math.PI)*(-200))
+
+                    }                    
+                }
+            })
+        }
+        this.bulletCooldown++
         // följande kod är från det tutorial ni gjort tidigare
         // Control the player with left or right keys
 
         // Player can jump while walking any direction by pressing the space bar
         // or the 'UP' arrow
-        if (
-            (this.cursors.space.isDown || this.cursors.up.isDown) &&
-            this.player.body.onFloor()
-        ) {
-            this.player.setVelocityY(-350);
-            this.player.play('jump', true);
-        }
-
+     
         if (this.player.body.velocity.x > 0) {
             this.player.setFlipX(false);
         } else if (this.player.body.velocity.x < 0) {
@@ -171,13 +270,13 @@ class PlayScene extends Phaser.Scene {
         this.player.setVelocityX(480)
         if(this.player.body.velocity.x < -480)
         this.player.setVelocityX(-480)
+
+        this.player.setVelocityX(this.player.body.velocity.x * 0.93)
     }
 
     // metoden updateText för att uppdatera overlaytexten i spelet
     updateText() {
-        this.text.setText(
-            `Arrow keys to move. Space to jump. P to pause. Spiked: ${this.spiked}`
-        );
+        this.text.setText(`Arrow keys to move. Space to jump. P to pause.`);
     }
 
     // när spelaren landar på en spik, då körs följande metod
@@ -199,18 +298,38 @@ class PlayScene extends Phaser.Scene {
     }
 
     jump (player, platform){
-        if(player.body.touching.down)
+        if(player.body.onFloor())
         {
-        jumpIsUsed = false;
-        jumpIsAllowed = false;
-        dashIsUsed = false;
+            this.jumpIsUsed = false;
+            this.jumpIsAllowed = false;
+            
+            if ((this.WKey.isDown || this.SpaceKey.isDown || this.cursors.up.isDown) && this.player.getData('health') >= 1){
+                this.player.setVelocityY(-430);
+                this.player.play('jump', true);
+            }
+
         }
-        if ((this.WKey.isDown || this.SpaceKey.isDown) && this.player.body.onFloor())
-        {
-            player.setVelocityY(-530);
-            this.player.play('jump', true);
+    }
+
+    destroyDonut (donut, platform){
+        donut.destroy();
+    }
+
+    destroyDonutAndFoe (foe, donut){
+        donut.destroy();
+        foe.setData('health', foe.getData('health') - 40)
+        if(foe.getData('health') <= 0){
+            foe.destroy();
         }
-        this.player.setVelocityX(this.player.body.velocity.x * 0.93)
+    }
+
+    damagePlayer (player, bullet){
+        bullet.destroy();
+        player.setData('health', player.getData('health')-1);
+    }
+
+    destroyBullet (bullet, platform){
+        bullet.destroy();
     }
 
     // när vi skapar scenen så körs initAnims för att ladda spelarens animationer
