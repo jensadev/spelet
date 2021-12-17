@@ -45,6 +45,7 @@ class PlayScene extends Phaser.Scene {
         this.player.setBounce(0.1);
         this.player.setCollideWorldBounds(true);
         this.player.setData('health', 8);
+        this.player.setScale(0.5,0.5)
 
         // skapa en fysik-grupp
         this.spikes = this.physics.add.group({
@@ -68,23 +69,14 @@ class PlayScene extends Phaser.Scene {
         });*/
         // lägg till en collider mellan spelare och spik
         // om en kollision sker, kör callback metoden playerHit
-        this.physics.add.collider(
-            this.player,
-            this.spikes,
-            this.playerHit,
-            null,
-            this
-        );
+        this.physics.add.collider(this.player, this.spikes, this.playerHit, null, this);
 
         // krocka med platforms lagret
         this.physics.add.collider(this.player, this.platforms, this.jump, null, this);
 
         // skapa text på spelet, texten är tom
         // textens innehåll sätts med updateText() metoden
-        this.text = this.add.text(16, 16, '', {
-            fontSize: '20px',
-            fill: '#ffffff'
-        });
+        this.text = this.add.text(16, 16, '', {fontSize: '20px', fill: '#ffffff'});
         this.text.setScrollFactor(0);
         this.updateText();
 
@@ -99,12 +91,8 @@ class PlayScene extends Phaser.Scene {
         this.DKey = this.input.keyboard.addKey('D');
 
         // exempel för att lyssna på events
-        this.events.on('pause', function () {
-            console.log('Play scene paused');
-        });
-        this.events.on('resume', function () {
-            console.log('Play scene resumed');
-        });
+        this.events.on('pause', function () {console.log('Play scene paused');});
+        this.events.on('resume', function () {console.log('Play scene resumed');});
 
         this.cameras.main.startFollow(this.player);
         this.cameras.main.setLerp(0.1, 0.1);
@@ -191,6 +179,7 @@ class PlayScene extends Phaser.Scene {
         if(this.DashKey.isDown && this.foeAllowed){
             this.foe = this.foes.create(this.player.body.x, this.player.body.y, 'foe');
             this.foe.setData('health', 100);
+            this.foe.setData('cooldown', Math.random() * 300);
             this.foeAllowed = false;
         }
 
@@ -201,7 +190,7 @@ class PlayScene extends Phaser.Scene {
         if(this.pointerIsDown && this.donutCooldown > 15){
             let v = Math.atan2((this.game.input.mousePointer.x - this.player.body.x - 32 + this.cameras.main.scrollX),(this.game.input.mousePointer.y - this.player.body.y - 32 + this.cameras.main.scrollY))
 
-            this.donut = this.donuts.create(this.player.body.x + 32, this.player.body.y + 32, 'donut');
+            this.donut = this.donuts.create(this.player.body.x + 16, this.player.body.y + 16, 'donut');
             this.donut.setScale(0.125);
             this.donut.body.allowGravity = false;
             this.donut.setVelocityY(Math.cos(v+Math.PI)*(-800) + this.player.body.velocity.y)
@@ -224,41 +213,52 @@ class PlayScene extends Phaser.Scene {
                 }
             })
         }
-        if (this.foes.countActive(true) != 0 && this.bulletCooldown >= 80) {
-            this.bulletCooldown = 0;
+
+        if (this.foes.countActive(true) != 0) {
             let bullet;
             let bullets = this.bullets;
             let player = this.player;
             let platforms = this.platforms;
             this.foes.children.iterate(function (child) {
                 if (child != null) {
+                    child.setData('cooldown', child.getData('cooldown') - 1)
                     let line = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 12, child.body.x + 12, child.body.y + 12);
                     let line2 = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 35, child.body.x + 12, child.body.y + 35);
                     let line3 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 12, child.body.x + 35, child.body.y + 12);
                     let line4 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 35, child.body.x + 35, child.body.y + 35);
-                    if(platforms.getTilesWithinShape(line, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line2, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line3, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line4, { isColliding: true }).length == 0){
-                        let v = Math.atan2((player.body.x - child.body.x),(player.body.y - child.body.y))
 
-                        bullet = bullets.create(child.body.x + 32, child.body.y + 16, 'bullet');
-                        //bullet.setScale(0.5);
-                        bullet.rotation = -v - Math.PI/2;
-                        if(player.body.x >= child.body.x){
-                            bullet.flipY = true;
+                    if(child.getData('cooldown') <= 0){
+                    child.setData('cooldown', Math.random() * 50 + 120);
+                        if(platforms.getTilesWithinShape(line, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line2, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line3, { isColliding: true }).length == 0 && platforms.getTilesWithinShape(line4, { isColliding: true }).length == 0){
+                            let v = Math.atan2((player.body.x - child.body.x),(player.body.y - child.body.y))
+
+                            bullet = bullets.create(child.body.x + 32, child.body.y + 16, 'bullet');
+                            //bullet.setScale(0.5);
+                            bullet.rotation = -v - Math.PI/2;
+                            if(player.body.x >= child.body.x){
+                                bullet.flipY = true;
+                            }
+                            bullet.body.allowGravity = false;
+                            bullet.setData('time', 1000)
+                            bullet.setVelocityY(Math.cos(v+Math.PI)*(-200))
+                            bullet.setVelocityX(Math.sin(v+Math.PI)*(-200))
                         }
-                        bullet.body.allowGravity = false;
-                        bullet.setVelocityY(Math.cos(v+Math.PI)*(-200))
-                        bullet.setVelocityX(Math.sin(v+Math.PI)*(-200))
-
                     }                    
                 }
             })
         }
-        this.bulletCooldown++
-        // följande kod är från det tutorial ni gjort tidigare
-        // Control the player with left or right keys
 
-        // Player can jump while walking any direction by pressing the space bar
-        // or the 'UP' arrow
+        if (this.bullets.countActive(true) != 0) {
+            this.bullets.children.iterate(function (child) {
+                if (child != null) {
+                    if (child.getData('time') == 0) {
+                        child.destroy();
+                    } else {
+                        child.setData('time', child.getData('time') - 1);
+                    }
+                }
+            })
+        }
      
         if (this.player.body.velocity.x > 0) {
             this.player.setFlipX(false);
