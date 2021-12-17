@@ -14,9 +14,10 @@ class PlayScene extends Phaser.Scene {
         //this.add.image(0, 0, 'background').setOrigin(0, 0);
         
         // skapa en tilemap från JSON filen vi preloadade
-        const map = this.make.tilemap({ key: 'map' });
+        const map = this.make.tilemap({ key: 'map', tileWidth: 32, tileHeight: 32 });
         // ladda in tilesetbilden till vår tilemap
         const tileset = map.addTilesetImage('jefrens_tilesheet', 'tiles');
+        console.log(map)
 
         // initiera animationer, detta är flyttat till en egen metod
         // för att göra create metoden mindre rörig
@@ -28,9 +29,9 @@ class PlayScene extends Phaser.Scene {
         // Ladda lagret Platforms från tilemappen
         // och skapa dessa
         // sätt collisionen
-        map.createLayer('background', tileset);
-        map.createLayer('foreground', tileset);
-        this.platforms = map.createLayer('platforms', tileset);
+        map.createLayer('Bakgrund', tileset);
+        //map.createLayer('foreground', tileset);
+        this.platforms = map.createLayer('Platforms', tileset);
         this.platforms.setCollisionByExclusion(-1, true);
         // platforms.setCollisionByProperty({ collides: true });
         // this.platforms.setCollisionFromCollisionGroup(
