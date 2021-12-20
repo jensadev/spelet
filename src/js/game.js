@@ -6,14 +6,14 @@ import MenuScene from './menu-scene';
 // spelets config
 const config = {
     type: Phaser.AUTO,
-    width: 896,
-    height: 448,
+    width: 834,
+    height: 512,
     pixelArt: true,
     transparent: true,
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 400 },
+            gravity: { y: 1000 },
             debug: true
         }
     },
