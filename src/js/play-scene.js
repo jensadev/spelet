@@ -16,8 +16,8 @@ class PlayScene extends Phaser.Scene {
         // skapa en tilemap från JSON filen vi preloadade
         const map = this.make.tilemap({ key: 'map', tileWidth: 32, tileHeight: 32 });
         // ladda in tilesetbilden till vår tilemap
-        const tileset = map.addTilesetImage('jefrens_tilesheet', 'tiles');
-        console.log(map)
+        const tileset = map.addTilesetImage('tilesheet_ny', 'tiles');
+        this.background = this.add.image(0, 0, 'background').setOrigin(0);
 
         // initiera animationer, detta är flyttat till en egen metod
         // för att göra create metoden mindre rörig
@@ -42,7 +42,8 @@ class PlayScene extends Phaser.Scene {
         // platforms.setCollision(1, true, true);
 
         // skapa en spelare och ge den studs
-        this.player = this.physics.add.sprite(50, 300, 'player');
+        this.player = this.physics.add.sprite(50, 200, 'player');
+        this.player.setSize(32,64)
         this.player.setBounce(0.1);
         this.player.setCollideWorldBounds(true);
         this.player.setData('health', 8);
@@ -98,10 +99,9 @@ class PlayScene extends Phaser.Scene {
         this.cameras.main.startFollow(this.player);
         this.cameras.main.setLerp(0.1, 0.1);
         this.cameras.main.setDeadzone(0, 0);
-        this.cameras.main.setViewport(0, 0, 896, 448);
-        this.cameras.main.setBounds(0, 0, 896, 448);
+        this.cameras.main.setBounds(0, 0, 834, 512);
 
-        this.physics.world.setBounds(0, 0, 896, 448);
+        this.physics.world.setBounds(0, 0, 834, 512);
 
         this.foes = this.physics.add.group({});
         this.donuts = this.physics.add.group({});
@@ -181,6 +181,7 @@ class PlayScene extends Phaser.Scene {
             this.foe = this.foes.create(this.player.body.x, this.player.body.y, 'foe');
             this.foe.setData('health', 100);
             this.foe.setData('cooldown', Math.random() * 300);
+            this.foe.setScale(0.5,0.5)
             this.foeAllowed = false;
         }
 
@@ -192,7 +193,7 @@ class PlayScene extends Phaser.Scene {
             let v = Math.atan2((this.game.input.mousePointer.x - this.player.body.x - 32 + this.cameras.main.scrollX),(this.game.input.mousePointer.y - this.player.body.y - 32 + this.cameras.main.scrollY))
 
             this.donut = this.donuts.create(this.player.body.x + 16, this.player.body.y + 16, 'donut');
-            this.donut.setScale(0.125);
+            this.donut.setScale(0.0625);
             this.donut.body.allowGravity = false;
             this.donut.setVelocityY(Math.cos(v+Math.PI)*(-800) + this.player.body.velocity.y)
             this.donut.setVelocityX(Math.sin(v+Math.PI)*(-800) + this.player.body.velocity.x)
@@ -223,10 +224,10 @@ class PlayScene extends Phaser.Scene {
             this.foes.children.iterate(function (child) {
                 if (child != null) {
                     child.setData('cooldown', child.getData('cooldown') - 1)
-                    let line = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 12, child.body.x + 12, child.body.y + 12);
-                    let line2 = new Phaser.Geom.Line(player.body.x + 12, player.body.y + 35, child.body.x + 12, child.body.y + 35);
-                    let line3 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 12, child.body.x + 35, child.body.y + 12);
-                    let line4 = new Phaser.Geom.Line(player.body.x + 35, player.body.y + 35, child.body.x + 35, child.body.y + 35);
+                    let line = new Phaser.Geom.Line(player.body.x + 7, player.body.y + 7, child.body.x + 7, child.body.y + 7);
+                    let line2 = new Phaser.Geom.Line(player.body.x + 7, player.body.y + 35, child.body.x + 7, child.body.y + 17);
+                    let line3 = new Phaser.Geom.Line(player.body.x + 17, player.body.y + 7, child.body.x + 17, child.body.y + 7);
+                    let line4 = new Phaser.Geom.Line(player.body.x + 17, player.body.y + 17, child.body.x + 17, child.body.y + 17);
 
                     if(child.getData('cooldown') <= 0){
                     child.setData('cooldown', Math.random() * 50 + 120);
@@ -234,7 +235,7 @@ class PlayScene extends Phaser.Scene {
                             let v = Math.atan2((player.body.x - child.body.x),(player.body.y - child.body.y))
 
                             bullet = bullets.create(child.body.x + 32, child.body.y + 16, 'bullet');
-                            //bullet.setScale(0.5);
+                            bullet.setScale(0.5);
                             bullet.rotation = -v - Math.PI/2;
                             if(player.body.x >= child.body.x){
                                 bullet.flipY = true;
